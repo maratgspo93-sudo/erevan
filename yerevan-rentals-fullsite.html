@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Բնակարան.յամ — Վարձով բնակարաններ Երևանում</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'IBM Plex Sans', sans-serif; background: #FBF8F4; color: #211D19; }
+  .disp { font-family: 'Fraunces', serif; }
+  .card { transition: transform .18s ease, box-shadow .18s ease; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(33,29,25,0.12); }
+  .btn-primary { background:#E4691B; color:#fff; }
+  .btn-primary:hover { background:#C85812; }
+  input, select { font-family: 'IBM Plex Sans', sans-serif; }
+  input:focus, select:focus { outline: 2px solid #E4691B; outline-offset: 1px; }
+  ::selection { background: #F3D2B3; }
+  @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useMemo, useEffect, useRef } = React;
+
+/* ---------- simple inline icons (no external icon package needed) ---------- */
+const Icon = ({ children, size = 16, style }) => (
+  <span style={{ fontSize: size, lineHeight: 1, display: "inline-flex", ...style }}>{children}</span>
+);
+const IconSearch = (p) => <Icon {...p}>🔍</Icon>;
+const IconPin = (p) => <Icon {...p}>📍</Icon>;
+const IconHome = (p) => <Icon {...p}>🏠</Icon>;
+const IconRuler = (p) => <Icon {...p}>📐</Icon>;
+const IconLayers = (p) => <Icon {...p}>🧱</Icon>;
+const IconHeart = ({ filled, ...p }) => <Icon {...p} style={{ color: filled ? "#E4691B" : "#211D19" }}>{filled ? "♥" : "♡"}</Icon>;
+const IconExternal = (p) => <Icon {...p}>↗</Icon>;
+const IconPlus = (p) => <Icon {...p}>＋</Icon>;
+const IconClose = (p) => <Icon {...p}>×</Icon>;
+const IconFilter = (p) => <Icon {...p}>⚙</Icon>;
+
+/* ---------- data ---------- */
+const DISTRICTS = ["Կենտրոն","Արաբկիր","Նոր Նորք","Աջափնյակ","Էրեբունի","Ավան","Մալաթիա-Սեբաստիա","Քանաքեռ-Զեյթուն","Նուբարաշեն","Շենգավիթ"];
+const SOURCES = [
+  { name: "List.am", url: "https://www.list.am/en/category/56" },
+  { name: "MyRealty.am", url: "https://www.myrealty.am/en/rent-apartments" },
+  { name: "Estate.am", url: "https://www.estate.am/en/rent" },
+];
+const seedListings = [
+  { id:1, title:"2 սենյականոց բնակարան Կենտրոնում, Աբովյան փողոց", district:"Կենտրոն", rooms:2, area:68, floor:"3/9", priceAmd:320000, img:"https://picsum.photos/seed/yer1/640/440", source:SOURCES[0] },
+  { id:2, title:"1 սենյականոց նորակառույց, Արաբկիր, Կոմիտասի պողոտա", district:"Արաբկիր", rooms:1, area:45, floor:"5/12", priceAmd:210000, img:"https://picsum.photos/seed/yer2/640/440", source:SOURCES[1] },
+  { id:3, title:"3 սենյականոց, հին ֆոնդ, Նոր Նորք, 3-րդ զանգված", district:"Նոր Նորք", rooms:3, area:82, floor:"2/5", priceAmd:250000, img:"https://picsum.photos/seed/yer3/640/440", source:SOURCES[0] },
+  { id:4, title:"Ստուդիո-բնակարան, Աջափնյակ, Գայի պողոտայի մոտ", district:"Աջափնյակ", rooms:1, area:32, floor:"6/9", priceAmd:150000, img:"https://picsum.photos/seed/yer4/640/440", source:SOURCES[2] },
+  { id:5, title:"4 սենյականոց ընտանեկան բնակարան, Էրեբունի", district:"Էրեբունի", rooms:4, area:105, floor:"1/5", priceAmd:280000, img:"https://picsum.photos/seed/yer5/640/440", source:SOURCES[0] },
+  { id:6, title:"2 սենյականոց, նորակառույց, Ավան, Ավանի կամուրջի մոտ", district:"Ավան", rooms:2, area:61, floor:"8/14", priceAmd:240000, img:"https://picsum.photos/seed/yer6/640/440", source:SOURCES[1] },
+  { id:7, title:"3 սենյականոց, Մալաթիա-Սեբաստիա, Մյասնիկյան պողոտա", district:"Մալաթիա-Սեբաստիա", rooms:3, area:75, floor:"4/9", priceAmd:230000, img:"https://picsum.photos/seed/yer7/640/440", source:SOURCES[2] },
+  { id:8, title:"1 սենյականոց, Քանաքեռ-Զեյթուն, Նոր-Զեյթուն", district:"Քանաքեռ-Զեյթուն", rooms:1, area:40, floor:"2/5", priceAmd:170000, img:"https://picsum.photos/seed/yer8/640/440", source:SOURCES[0] },
+  { id:9, title:"2 սենյականոց, հանգիստ բակով, Նուբարաշեն", district:"Նուբարաշեն", rooms:2, area:58, floor:"1/4", priceAmd:140000, img:"https://picsum.photos/seed/yer9/640/440", source:SOURCES[1] },
+  { id:10, title:"3 սենյականոց, Շենգավիթ, Արշակունյաց պողոտա", district:"Շենգավիթ", rooms:3, area:79, floor:"5/9", priceAmd:220000, img:"https://picsum.photos/seed/yer10/640/440", source:SOURCES[2] },
+  { id:11, title:"Luxury 2 սենյականոց, Կենտրոն, Նորթեռն պողոտա", district:"Կենտրոն", rooms:2, area:90, floor:"7/10", priceAmd:650000, img:"https://picsum.photos/seed/yer11/640/440", source:SOURCES[0] },
+  { id:12, title:"1 սենյականոց, Արաբկիր, Դեմիրճյան փողոց", district:"Արաբկիր", rooms:1, area:38, floor:"3/5", priceAmd:180000, img:"https://picsum.photos/seed/yer12/640/440", source:SOURCES[1] },
+];
+
+function fmtAmd(n){ return n.toLocaleString("en-US") + " ֏"; }
+
+// Լրացրու քո deploy-ված backend-ի հասցեով, օր.` "https://your-api.onrender.com"
+// Դատարկ պահելու դեպքում կայքն աշխատում է ցուցադրական (mock) տվյալներով։
+const API_URL = "";
+
+function App(){
+  const [listings, setListings] = useState(seedListings);
+  const [apiStatus, setApiStatus] = useState(API_URL ? "connecting" : "mock");
+  const didInit = useRef(false);
+  const [district, setDistrict] = useState("Բոլորը");
+  const [rooms, setRooms] = useState("Բոլորը");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [minArea, setMinArea] = useState("");
+  const [query, setQuery] = useState("");
+  const [favorites, setFavorites] = useState(new Set());
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [toast, setToast] = useState("");
+  const [form, setForm] = useState({ title:"", district:DISTRICTS[0], rooms:1, area:"", floor:"", priceAmd:"", link:"" });
+
+  useEffect(() => {
+    if (!API_URL || didInit.current) return;
+    didInit.current = true;
+    fetch(`${API_URL}/api/listings`)
+      .then(r => { if(!r.ok) throw new Error(); return r.json(); })
+      .then(data => {
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          setListings(data.results.map(l => ({ ...l, source: { name: l.sourceName, url: l.sourceUrl } })));
+        }
+        setApiStatus("connected");
+      })
+      .catch(() => setApiStatus("offline"));
+  }, []);
+
+  const filtered = useMemo(() => listings.filter(l => {
+    if (district !== "Բոլորը" && l.district !== district) return false;
+    if (rooms !== "Բոլորը") {
+      const r = rooms === "4+" ? l.rooms >= 4 : l.rooms === Number(rooms);
+      if (!r) return false;
+    }
+    if (minPrice && l.priceAmd < Number(minPrice)) return false;
+    if (maxPrice && l.priceAmd > Number(maxPrice)) return false;
+    if (minArea && l.area < Number(minArea)) return false;
+    if (query && !l.title.toLowerCase().includes(query.toLowerCase()) && !l.district.toLowerCase().includes(query.toLowerCase())) return false;
+    return true;
+  }), [listings, district, rooms, minPrice, maxPrice, minArea, query]);
+
+  function toggleFavorite(id){
+    setFavorites(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  }
+  function showToast(msg){ setToast(msg); setTimeout(() => setToast(""), 2600); }
+
+  async function submitListing(e){
+    e.preventDefault();
+    if (!form.title || !form.link || !form.priceAmd) { showToast("Խնդրում ենք լրացնել վերնագիրը, գինը և հղումը"); return; }
+    const payload = {
+      title: form.title, district: form.district, rooms: Number(form.rooms), area: Number(form.area)||0,
+      floor: form.floor || "—", priceAmd: Number(form.priceAmd),
+      img: `https://picsum.photos/seed/yer${Date.now()}/640/440`,
+      sourceName: "Ձեր հղումը", sourceUrl: form.link,
+    };
+    if (API_URL && apiStatus === "connected") {
+      try {
+        const res = await fetch(`${API_URL}/api/listings`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+        if (!res.ok) throw new Error();
+        const saved = await res.json();
+        setListings(prev => [{ ...saved, source:{ name: saved.sourceName, url: saved.sourceUrl } }, ...prev]);
+      } catch {
+        setListings(prev => [{ id: Date.now(), ...payload, source:{ name: payload.sourceName, url: payload.sourceUrl } }, ...prev]);
+      }
+    } else {
+      setListings(prev => [{ id: Date.now(), ...payload, source:{ name: payload.sourceName, url: payload.sourceUrl } }, ...prev]);
+    }
+    setForm({ title:"", district:DISTRICTS[0], rooms:1, area:"", floor:"", priceAmd:"", link:"" });
+    setShowAddForm(false);
+    showToast("Հայտարարությունն ավելացվեց");
+  }
+
+  const selStyle = { padding:"10px 12px", border:"1px solid #E4DDD2", borderRadius:9, fontSize:14, background:"#fff" };
+  const inputStyle = { padding:"10px 12px", border:"1px solid #E4DDD2", borderRadius:9, fontSize:14, boxSizing:"border-box" };
+  const labelStyle = { fontSize:12.5, fontWeight:600, color:"#4A4340", display:"flex", flexDirection:"column", gap:5 };
+  const fInput = { padding:"9px 11px", border:"1px solid #E4DDD2", borderRadius:8, fontSize:14, boxSizing:"border-box" };
+
+  return (
+    <div style={{ minHeight:"100vh" }}>
+      <header style={{ borderBottom:"1px solid #E4DDD2" }}>
+        <div style={{ maxWidth:1180, margin:"0 auto", padding:"20px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:34, height:34, borderRadius:8, background:"#211D19", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <IconHome size={16} style={{ color:"#F3D2B3" }} />
+            </div>
+            <span className="disp" style={{ fontSize:21, fontWeight:600 }}>Բնակարան.յամ</span>
+            <span style={{ fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:999,
+              background: apiStatus==="connected" ? "#E6F2E9" : "#F3EEE6",
+              color: apiStatus==="connected" ? "#2C7A4B" : "#8A7F72" }}>
+              {apiStatus==="connected" ? "● API միացված" : apiStatus==="connecting" ? "● կապվում է…" : "● Ցուցադրական ռեժիմ"}
+            </span>
+          </div>
+          <button onClick={() => setShowAddForm(true)} className="btn-primary"
+            style={{ border:"none", borderRadius:8, padding:"10px 18px", fontWeight:600, fontSize:14, display:"flex", alignItems:"center", gap:6, cursor:"pointer" }}>
+            <IconPlus size={14} /> Ավելացնել հայտարարություն
+          </button>
+        </div>
+      </header>
+
+      <section style={{ maxWidth:1180, margin:"0 auto", padding:"56px 24px 28px" }}>
+        <h1 className="disp" style={{ fontSize:"clamp(32px,5vw,52px)", fontWeight:500, lineHeight:1.08, maxWidth:680, margin:0 }}>
+          Գտիր քո հաջորդ բնակարանը Երևանում
+        </h1>
+        <p style={{ maxWidth:560, marginTop:14, fontSize:16.5, color:"#4A4340", lineHeight:1.6 }}>
+          Հավաքված են վարձակալության հայտարարություններ List.am, MyRealty.am և Estate.am հարթակներից։
+          Ընտրիր չափանիշները, և կողմնորոշվիր ուղիղ բնօրինակ հայտարարության մեջ։
+        </p>
+      </section>
+
+      <section style={{ maxWidth:1180, margin:"0 auto", padding:"0 24px 8px" }}>
+        <div style={{ background:"#fff", border:"1px solid #E4DDD2", borderRadius:14, padding:18 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, color:"#7A6F65", fontSize:13, fontWeight:600 }}>
+            <IconFilter size={14} /> Ֆիլտրեր
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:12 }}>
+            <div style={{ position:"relative", gridColumn:"span 2 / span 2" }}>
+              <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9A8F84" }}><IconSearch size={14} /></span>
+              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Փնտրել՝ վերնագիր կամ թաղամաս"
+                style={{ width:"100%", padding:"10px 12px 10px 34px", border:"1px solid #E4DDD2", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+            </div>
+            <select value={district} onChange={e=>setDistrict(e.target.value)} style={selStyle}>
+              <option>Բոլորը</option>
+              {DISTRICTS.map(d => <option key={d}>{d}</option>)}
+            </select>
+            <select value={rooms} onChange={e=>setRooms(e.target.value)} style={selStyle}>
+              <option>Բոլորը</option>
+              <option value="1">1 սենյակ</option>
+              <option value="2">2 սենյակ</option>
+              <option value="3">3 սենյակ</option>
+              <option value="4+">4+ սենյակ</option>
+            </select>
+            <input type="number" placeholder="Գին, min ֏" value={minPrice} onChange={e=>setMinPrice(e.target.value)} style={inputStyle} />
+            <input type="number" placeholder="Գին, max ֏" value={maxPrice} onChange={e=>setMaxPrice(e.target.value)} style={inputStyle} />
+            <input type="number" placeholder="Մակերես, min ք.մ" value={minArea} onChange={e=>setMinArea(e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+      </section>
+
+      <section style={{ maxWidth:1180, margin:"0 auto", padding:"28px 24px 70px" }}>
+        <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:16 }}>
+          <span style={{ fontSize:14, color:"#7A6F65" }}>{filtered.length} հայտարարություն գտնվեց</span>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"60px 20px", color:"#7A6F65" }}>
+            <p className="disp" style={{ fontSize:20, marginBottom:6 }}>Ոչինչ չգտնվեց</p>
+            <p style={{ fontSize:14 }}>Փորձիր փոխել ֆիլտրերը կամ մաքրել գնային միջակայքը։</p>
+          </div>
+        ) : (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))", gap:20 }}>
+            {filtered.map(l => (
+              <div key={l.id} className="card" style={{ background:"#fff", border:"1px solid #E4DDD2", borderRadius:14, overflow:"hidden", display:"flex", flexDirection:"column" }}>
+                <div style={{ position:"relative" }}>
+                  <img src={l.img} alt={l.title} style={{ width:"100%", height:170, objectFit:"cover", display:"block" }} />
+                  <button onClick={() => toggleFavorite(l.id)} aria-label="Ավելացնել նախընտրելիներին"
+                    style={{ position:"absolute", top:10, right:10, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:999, width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                    <IconHeart size={16} filled={favorites.has(l.id)} />
+                  </button>
+                  <span style={{ position:"absolute", bottom:10, left:10, background:"rgba(33,29,25,0.85)", color:"#fff", fontSize:11, padding:"4px 9px", borderRadius:6 }}>
+                    {l.source.name}
+                  </span>
+                </div>
+                <div style={{ padding:16, display:"flex", flexDirection:"column", gap:10, flex:1 }}>
+                  <h3 className="disp" style={{ fontSize:16.5, fontWeight:500, margin:0, lineHeight:1.35 }}>{l.title}</h3>
+                  <div style={{ display:"flex", alignItems:"center", gap:5, color:"#7A6F65", fontSize:13 }}>
+                    <IconPin size={12} /> {l.district}
+                  </div>
+                  <div style={{ display:"flex", gap:14, fontSize:13, color:"#4A4340" }}>
+                    <span style={{ display:"flex", alignItems:"center", gap:4 }}><IconHome size={12} /> {l.rooms} սեն.</span>
+                    <span style={{ display:"flex", alignItems:"center", gap:4 }}><IconRuler size={12} /> {l.area} ք.մ</span>
+                    <span style={{ display:"flex", alignItems:"center", gap:4 }}><IconLayers size={12} /> {l.floor}</span>
+                  </div>
+                  <div style={{ marginTop:"auto", display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:8 }}>
+                    <span className="disp" style={{ fontSize:19, fontWeight:600 }}>{fmtAmd(l.priceAmd)}</span>
+                  </div>
+                  <a href={l.source.url} target="_blank" rel="noopener noreferrer" className="btn-primary"
+                    style={{ textDecoration:"none", borderRadius:8, padding:"10px 0", fontSize:13.5, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                    Տեսնել Հայտարարությունը <IconExternal size={13} />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <div style={{ maxWidth:1180, margin:"0 auto", padding:"0 24px 50px" }}>
+        <div style={{ border:"1px dashed #D8CDBF", borderRadius:10, padding:"12px 16px", fontSize:12.5, color:"#7A6F65" }}>
+          Ցուցադրական տվյալների նշում. այս էջի հայտարարությունները նմուշային (mock) տվյալներ են, եթե API_URL-ը միացված չէ։
+          «Տեսնել Հայտարարությունը» կոճակները տանում են դեպի իրական աղբյուրների ընդհանուր վարձակալության բաժինները։
+        </div>
+      </div>
+
+      {showAddForm && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(33,29,25,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, zIndex:50 }}>
+          <div style={{ background:"#fff", borderRadius:16, maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", padding:26 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+              <h2 className="disp" style={{ fontSize:21, margin:0, fontWeight:500 }}>Ավելացնել հայտարարություն</h2>
+              <button onClick={() => setShowAddForm(false)} style={{ background:"none", border:"none", cursor:"pointer" }}><IconClose size={20} /></button>
+            </div>
+            <form onSubmit={submitListing} style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <label style={labelStyle}>Վերնագիր
+                <input required value={form.title} onChange={e=>setForm({...form, title:e.target.value})} style={fInput} placeholder="օր.՝ 2 սենյականոց Կենտրոնում" />
+              </label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <label style={labelStyle}>Թաղամաս
+                  <select value={form.district} onChange={e=>setForm({...form, district:e.target.value})} style={fInput}>
+                    {DISTRICTS.map(d => <option key={d}>{d}</option>)}
+                  </select>
+                </label>
+                <label style={labelStyle}>Սենյակներ
+                  <input type="number" min="1" value={form.rooms} onChange={e=>setForm({...form, rooms:e.target.value})} style={fInput} />
+                </label>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <label style={labelStyle}>Մակերես (ք.մ)
+                  <input type="number" value={form.area} onChange={e=>setForm({...form, area:e.target.value})} style={fInput} />
+                </label>
+                <label style={labelStyle}>Հարկ
+                  <input value={form.floor} onChange={e=>setForm({...form, floor:e.target.value})} style={fInput} placeholder="օր.՝ 3/9" />
+                </label>
+              </div>
+              <label style={labelStyle}>Գին (֏ / ամիս)
+                <input required type="number" value={form.priceAmd} onChange={e=>setForm({...form, priceAmd:e.target.value})} style={fInput} />
+              </label>
+              <label style={labelStyle}>Բնօրինակ հայտարարության հղում
+                <input required type="url" value={form.link} onChange={e=>setForm({...form, link:e.target.value})} style={fInput} placeholder="https://www.list.am/..." />
+              </label>
+              <button type="submit" className="btn-primary" style={{ border:"none", borderRadius:9, padding:"12px 0", fontWeight:600, fontSize:14.5, cursor:"pointer", marginTop:6 }}>
+                Հրապարակել
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{ position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", background:"#211D19", color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:13.5, zIndex:60 }}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
